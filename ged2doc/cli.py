@@ -12,6 +12,7 @@ from .size import String2Size
 from .i18n import I18N, DATE_FORMATS
 from .input import make_file_locator
 from .html_writer import HtmlWriter
+from .latex_writer import LatexWriter
 from .name import (FMT_SURNAME_FIRST, FMT_COMMA, FMT_MAIDEN,
                    FMT_MAIDEN_ONLY, FMT_CAPITAL)
 from .odt_writer import OdtWriter
@@ -56,10 +57,10 @@ def main():
                        " ignore, or replace; default: %(default)s")
 
     group = parser.add_argument_group("Output Options")
-    group.add_argument('-t', "--type", default=None, choices=['html', 'odt'],
+    group.add_argument('-t', "--type", default=None, choices=['html', 'odt', 'latex'],
                        help=("Type of the output document, possible values:"
                              " %(choices)s; by default type is determined by"
-                             " output file extension (*.odt, *.html, or *.htm"
+                             " output file extension (*.odt, *.html, *.htm or *.tex"
                              " are recognized)"))
     group.add_argument('-l', "--language", default=system_lang(),
                        metavar="LANG_CODE", choices=languages(),
@@ -152,6 +153,34 @@ def main():
                        metavar="NUMBER", type=int,
                        help="Number of the first page; default: %(default)s")
 
+    group = parser.add_argument_group("LaTeX Output Options")
+    group.add_argument("--latex-paper-format", default="a4paper",
+                       help="LaTeX paper format; default: %(default)s")
+    group.add_argument("--latex-paper-orientation", default="landscape",
+                       help="LaTeX paper orientation; default: %(default)s")
+    group.add_argument("--latex-margin-left", default="1.0in",
+                       metavar="SIZE", type=String2Size("in"),
+                       help="Page left margin in inches; default: %(default)s")
+    group.add_argument("--latex-margin-right", default="1.0in",
+                       metavar="SIZE", type=String2Size("in"),
+                       help="Page right margin in inches; "
+                       "default: %(default)s")
+    group.add_argument("--latex-margin-top", default="1.0in",
+                       metavar="SIZE", type=String2Size("in"),
+                       help="Page top margin in inches; default: %(default)s")
+    group.add_argument("--latex-margin-bottom", default="1.0in",
+                       metavar="SIZE", type=String2Size("in"),
+                       help="Page bottom margin in inches; "
+                       "default: %(default)s")
+    group.add_argument("--latex-tree-scale", default="0.7",
+                       help="Factor by which personal genealogy tree "
+                       "is scaled, allows to adjust the tree size to fit on page"
+                       "default: %(default)s")
+    group.add_argument("--latex-descending-generations", default="2",
+                       help="Number of generations to be shown on "
+                       "each personal genealogy tree"
+                       "default: %(default)s")
+
     args = parser.parse_args()
 
     if args.verbose == 0:
@@ -184,6 +213,8 @@ def main():
             args.type = "odt"
         elif ext.lower() in (".htm", ".html"):
             args.type = "html"
+        elif ext.lower() in (".tex"):
+            args.type = "latex"
         else:
             parser.error("Cannot determine document type from file extension,"
                          " use --type option to specify document type")
@@ -225,6 +256,23 @@ def main():
                            image_width=args.odt_image_width,
                            image_height=args.odt_image_height,
                            first_page=args.first_page)
+    elif args.type == "latex":
+        writer = LatexWriter(flocator, args.output, tr,
+                           encoding=args.encoding,
+                           encoding_errors=args.encoding_errors,
+                           sort_order=args.sort_order,
+                           make_toc=not args.no_toc,
+                           make_stat=not args.no_stat,
+                           make_images=not args.no_image,
+                           name_fmt=name_fmt,
+                           paper_format=args.latex_paper_format,
+                           paper_orientation=args.latex_paper_orientation,
+                           margin_left=args.latex_margin_left,
+                           margin_right=args.latex_margin_right,
+                           margin_top=args.latex_margin_top,
+                           margin_bottom=args.latex_margin_bottom,
+                           tree_scale=args.latex_tree_scale,
+                           descending_generations=args.latex_descending_generations)
 
     try:
         writer.save()
