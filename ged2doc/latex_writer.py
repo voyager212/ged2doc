@@ -10,6 +10,7 @@ import pkg_resources
 import string
 import os
 
+from PIL import Image
 from shutil import copyfile
 from ged4py import model
 from .plotter import Plotter
@@ -70,7 +71,8 @@ class LatexWriter(writer.Writer):
                  margin_left="0.5in", margin_right="0.5in",
                  margin_top="1.0in", margin_bottom="0.25in",
                  image_width="2in", image_height="2in",
-                 tree_scale="1.0", descending_generations="2"):
+                 tree_scale="1.0", descending_generations="2",
+                 eps_images=False):
 
         writer.Writer.__init__(self, flocator, tr, encoding=encoding,
                                encoding_errors=encoding_errors,
@@ -119,6 +121,7 @@ class LatexWriter(writer.Writer):
           self._tree_scale = 0.01
 
         self._descending_generations = int(descending_generations)
+        self._eps_images = eps_images
 
         if hasattr(output, 'write'):
             self._output = output
@@ -167,7 +170,7 @@ class LatexWriter(writer.Writer):
         doc += ['\\fancyfoot[LE,RO]{\\thepage}\n']
         doc += ['\\cfoot{}\n']
  
-        doc += ['\\title{' + self._encTR("Ancestor tree") + '}\n']
+        doc += ['\\title{' + self._TR("Ancestor tree") + '}\n']
         doc += ['\\author{Dariusz Kania}\n']
         doc += ['\\date{\\today}\n\n']
         doc += ['\\begin{document}\n\n']
@@ -189,13 +192,8 @@ class LatexWriter(writer.Writer):
         for line in doc:
             self._output.write(line.encode('utf-8'))
 
-    def _encTR(self, text):
-      return self._enc(self._tr.tr(TR(text)))
-
-    def _enc(self, text):
-#      if self._tr._lang == 'ru':
-#        return '\\foreignlanguage{russian}{%s}' % text
-      return text
+    def _TR(self, text):
+      return self._tr.tr(TR(text))
 
     def _interpolate(self, text):
         """Takes text with embedded references and returns proporly
@@ -208,7 +206,7 @@ class LatexWriter(writer.Writer):
             result += name
           else:
             result += piece
-        return self._enc(result)
+        return result
 
     def _render_section(self, level, ref_id, title, newpage=False):
         """Produces new section in the output document.
@@ -229,7 +227,7 @@ class LatexWriter(writer.Writer):
         sectionType[3] = 'subsection'
 
         doc = []
-        doc += ['\\' + sectionType[level] + '{' + self._enc(title) + '}\n']
+        doc += ['\\' + sectionType[level] + '{' + title + '}\n']
         doc += ['\\label{%s}\n' % ref_id]
         if level == 1:
           doc += ['\\thispagestyle{empty}\n']
@@ -277,16 +275,16 @@ class LatexWriter(writer.Writer):
         if attributes:
           longestAttribute = ''
           for attr, value in attributes:
-            if len(longestAttribute) < len(self._encTR(attr)):
-              longestAttribute = self._encTR(attr)
+            if len(longestAttribute) < len(self._TR(attr)):
+              longestAttribute = self._TR(attr)
           doc += ['\\makebox{}\n']
           doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},style=nextline]' % longestAttribute]
           for attr, value in attributes:
-            doc += [ '\\item[%s:] %s\n' % (self._encTR(attr), self._interpolate(value)) ] 
+            doc += [ '\\item[%s:] %s\n' % (self._TR(attr), self._interpolate(value)) ] 
           doc += ['\\end{description}\n']
 
         if families:
-          doc += ['\\subsubsection{' + self._encTR("Spouses and children") + '}\n']
+          doc += ['\\subsubsection{' + self._TR("Spouses and children") + '}\n']
           doc += ['\\noindent\n']
           for family in families:
             doc += [ '%s\\\\\n' % self._interpolate(family) ] 
@@ -297,20 +295,20 @@ class LatexWriter(writer.Writer):
             if len(longestDate) < len(date):
               longestDate = date
 
-          doc += ['\\subsubsection{' + self._encTR("Events and dates") + '}\n']
+          doc += ['\\subsubsection{' + self._TR("Events and dates") + '}\n']
           doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},style=nextline]' % longestDate]
           for date, facts in events:
             doc += [ '\\item[%s:] %s\n' % (date, self._interpolate(facts)) ] 
           doc += ['\\end{description}\n']
 
         if notes:
-          doc += ['\\subsubsection{' + self._encTR("Comments") + '}\n']
+          doc += ['\\subsubsection{' + self._TR("Comments") + '}\n']
           for note in notes:
             doc += [ self._interpolate(note) + '\n']
 
         tree_svg = self._make_family_tree(person)
         if tree_svg:
-          doc += ['\\subsubsection{' + self._encTR("Ancestor tree") + '}\n']
+          doc += ['\\subsubsection{' + self._TR("Ancestor tree") + '}\n']
           doc += [tree_svg]
         else:
           doc += ['\\vskip{2ex}\n']
@@ -328,7 +326,7 @@ class LatexWriter(writer.Writer):
         :param int n_females: Number of female individuals.
         :param int n_males: Number of male individuals.
         """
-        s = [self._encTR(t) for t in ['Person count', 'Female count', 'Male count'] ]
+        s = [self._TR(t) for t in ['Person count', 'Female count', 'Male count'] ]
         longestDescription = ''
         for t in s:
           if len(t) > len(longestDescription):
@@ -395,23 +393,39 @@ class LatexWriter(writer.Writer):
         '''Returns LaTeX fragment placing person's image.
         '''
         doc = ''
-        if not os.path.exists(utils.personImageFile(person)):
+
+        imageFileName = self._aquireImage(person)
+        if not imageFileName:
           return doc
 
-        if not os.path.exists('ged2doc.media'):
-          os.mkdir('ged2doc.media')
-
-        fileName,extension = os.path.splitext(utils.personImageFile(person))
-        newFileName = person.xref_id[1:-1] + extension
-        copyfile(utils.personImageFile(person), 'ged2doc.media/' + newFileName)
-
-        print( 'Copied file %s to ged2doc.media/%s' % (utils.personImageFile(person), newFileName))
-        doc += '\\begin{wraptable}{r}{4.5cm}\n'
-        doc += '\\includegraphics[width=\\textwidth,right]{%s}\n' % newFileName
+        doc += '\\begin{wraptable}{r}{5.0cm}\n'
+        doc += '\\tcbincludegraphics[enhanced,blank,arc=.5cm]{%s}\n' % imageFileName
         doc += '\\end{wraptable}\n'
         doc += '\\makebox{}\n'
 
         return doc
+
+    def _aquireImage(self, person):
+
+        sourceImageFile = utils.personImageFile(person)
+        if not os.path.exists(sourceImageFile):
+          return None
+
+        if not os.path.exists('ged2doc.media'):
+          os.mkdir('ged2doc.media')
+
+        fileName,extension = os.path.splitext(sourceImageFile)
+        newFileName = ''
+        if self._eps_images:
+          newFileName = person.xref_id[1:-1] + '.eps'
+          im = Image.open(sourceImageFile)
+          im.save('ged2doc.media/' + newFileName)
+          print( 'Converted %s to ged2doc.media/%s' % (sourceImageFile, newFileName))
+        else:
+          newFileName = person.xref_id[1:-1] + extension.lower()
+          copyfile(sourceImageFile, 'ged2doc.media/' + newFileName)
+          print( 'Copied %s to ged2doc.media/%s' % (sourceImageFile, newFileName))
+        return newFileName
 
     def _make_family_tree(self, person):
         """"Returns genealogytree structure for parent tree or None.
