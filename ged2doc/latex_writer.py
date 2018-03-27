@@ -72,6 +72,8 @@ class LatexWriter(writer.Writer):
                  margin_top="1.0in", margin_bottom="0.25in",
                  image_width="2in", image_height="2in",
                  tree_scale="1.0", descending_generations="2",
+                 ascending_generations="1",
+                 family_names="",
                  eps_images=False):
 
         writer.Writer.__init__(self, flocator, tr, encoding=encoding,
@@ -121,14 +123,18 @@ class LatexWriter(writer.Writer):
           self._tree_scale = 0.01
 
         self._descending_generations = int(descending_generations)
+        self._ascending_generations = int(ascending_generations)
+        self._family_names = family_names.split(',')
         self._eps_images = eps_images
 
         if hasattr(output, 'write'):
-            self._output = output
-            self._close = False
+          self._output = output
+          self._close = False
         else:
-            self._output = open(output, 'wb')
-            self._close = True
+          self._output = open(output, 'wb')
+          self._close = True
+
+        self._currentTreeGenerationLimit = 0
 
     def _render_prolog(self):
         """Generate initial document header/title.
@@ -221,6 +227,9 @@ class LatexWriter(writer.Writer):
         if not title:
           return
 
+        if level == 2 and self._excludeThisPerson(title):
+          return
+
         sectionType = {}
         sectionType[1] = 'chapter'
         sectionType[2] = 'section'
@@ -266,6 +275,9 @@ class LatexWriter(writer.Writer):
         if not person.name.first and not person.name.maiden and not person.name.surname:
           return
  
+        if self._excludeThisPerson(person.name.surname):
+          return
+
         if image_data:
           img = self._getImageFragment(person)
           if img:
@@ -315,6 +327,15 @@ class LatexWriter(writer.Writer):
 
         for line in doc:
           self._output.write(line.encode('utf-8'))
+
+    def _excludeThisPerson(self, name):
+        if len(self._family_names) < 1:
+          return False
+
+        for s in self._family_names:
+          if s in name:
+            return False
+        return True
 
     def _render_name_stat(self, n_total, n_females, n_males):
         """Produces summary table.
@@ -449,83 +470,110 @@ class LatexWriter(writer.Writer):
         tree += '\\end{centering}\n'
         return tree
 
-    def _makeTree(self, person):
+    def _makeTree(self, probant):
       tree = ''
-      if not person:
+      if not probant:
         return;
 
-      tree += self._addPersonAndSiblings(person, 0)
+      gen = self._ascending_generations
+      rootPerson, gen = self._findRootPerson(probant, self._ascending_generations)
+      self._currentTreeGenerationLimit = self._descending_generations + self._ascending_generations - gen
 
-      indent = self._indent(-1)
-      if person.mother:
-        tree += indent + 'parent{\n  ' + self._node('g', person.mother, -1) + indent + '}\n'
-      if person.father:
-        tree += indent + 'parent{\n  ' + self._node('g', person.father, -1) + indent + '}\n'
+      tree += self._addPersonAndSiblings(rootPerson, probant, 0)
 
       if len(tree) > 0:
         tree = '  sandclock{\n' + tree + '  }\n'
 
       return tree
 
-    def _addPersonAndSiblings(self, person, gen):
+    def _findRootPerson(self, person, gen):
+      if gen < 1 or not person:
+        return [person, gen]
+
+      father, genF = self._findRootPerson(person.father, gen-1)
+      mother, genM = self._findRootPerson(person.mother, gen-1)
+
+      if father and mother:
+        if genF <= genM:
+          return [father, genF]
+        return [mother, genM]
+
+      if father:
+        return [father, genF]
+
+      if mother:
+        return [mother, genM]
+
+      return [person, gen]
+
+    def _addParents(self, person, gen):
+      indent = self._indent(gen)
+      motherFams = person.mother.sub_tags('FAMS')
+      fatherFams = person.father.sub_tags('FAMS')
+
+      if person.mother:
+        tree += indent + 'parent{\n  ' + self._node('g', person.mother, -1) + indent + '}\n'
+      if person.father:
+        tree += indent + 'parent{\n  ' + self._node('g', person.father, -1) + indent + '}\n'
+
+    def _addPersonAndSiblings(self, person, probant, gen):
       tree = ''
+#      if gen > self._currentTreeGenerationLimit or not person:
       if not person:
         return tree
 
-      siblings = self._commonChildren(person.father, person.mother)
-      for p in siblings:
-        if p.xref_id == person.xref_id:
-          tree += self._addSpouses(p, gen, 'probant')
-        else:
-          tree += self._addSpouses(p, gen)
+      if gen > 0:
+        siblings = self._commonChildren(person.father, person.mother)
+        for p in siblings:
+          tree += self._addSpouses(p, probant, gen)
 
       if len(tree) == 0:
-        tree += self._addSpouses(person, gen, 'probant')
+        tree += self._addSpouses(person, probant, gen)
 
       return tree
 
-    def _addSpouses(self, person, gen, probant=None):
+    def _addSpouses(self, person, probant, gen):
       tree = ''
-      if gen > self._descending_generations:
+      if gen > self._currentTreeGenerationLimit:
         return tree
 
       indent = self._indent(gen)
-      if gen == self._descending_generations:
-        tree = self._node('g', person, gen, probant)
+      if gen == self._currentTreeGenerationLimit:
+        tree = self._node('g', person, probant, gen)
       else:
         fams = person.sub_tags('FAMS')
         spouseNumber=0
         for fam in fams:
           spouse = writer._spouse(person, fam)
+          children = fam.sub_tags("CHIL")
           if not spouse:
             continue
           spouseNumber += 1
           if spouseNumber == 1:
-            tree += self._node('p', spouse, gen)
-            tree += self._node('g', person, gen, probant)
-            tree += self._addCommonChildren(person, spouse, gen+1)
+            tree += self._node('p', spouse, probant, gen)
+            tree += self._node('g', person, probant, gen)
+            tree += self._addChildren(children, probant, gen+1)
           else:
             tree += indent + 'union{\n'
-            tree += self._node('p', spouse, gen)
-            tree += self._addCommonChildren(person, spouse, gen+1)
+            tree += self._node('p', spouse, probant, gen)
+            tree += self._addChildren(children, probant, gen+1)
             tree += indent + '}\n'
         if len(tree) == 0:
-          tree = self._node('g', person, gen, probant)
+          tree = self._node('g', person, probant, gen)
 
       tree = indent + 'child{\n' + tree + indent + '}\n'
       return tree
 
-    def _addCommonChildren(self, person1, person2, gen):
+    def _addChildren(self, children, probant, gen):
       tree = ''
-      if not person1 or not person2:
+      if not children:
         return tree
 
-      commonChildren = self._commonChildren(person1, person2)
-      for child in commonChildren:
-        if gen == self._descending_generations:
-          tree += self._node('c', child, gen)
+      for child in children:
+        if gen == self._currentTreeGenerationLimit:
+          tree += self._node('c', child, probant, gen)
         else:
-          tree += self._addSpouses(child, gen)
+          tree += self._addSpouses(child, probant, gen)
 
       return tree
 
@@ -557,14 +605,14 @@ class LatexWriter(writer.Writer):
         return '    ' + '  ' * (abs(gen)-1)
       return '    ' + '  ' * gen
 
-    def _node(self, nodeType, person, gen, nodeId=None):
+    def _node(self, nodeType, person, probant, gen):
       if not person:
         return ''
       indent = self._indent(gen+1)
       sex = self._sexName[person.sex]
 #      page = '(\\pageref{%s})' % person.xref_id[1:-1]
-      if nodeId:
-        return indent + '%s[%s, id=%s]{%s %s}\n' % (nodeType, sex, nodeId, person.name.first, person.name.surname)
+      if person.xref_id == probant.xref_id:
+        return indent + '%s[%s, id=probant]{%s %s}\n' % (nodeType, sex, person.name.first, person.name.surname)
       else:
         return indent + '%s[%s]{%s %s}\n' % (nodeType, sex, person.name.first, person.name.surname)
 
