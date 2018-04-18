@@ -6,15 +6,11 @@ from __future__ import absolute_import, division, print_function
 __all__ = ["LatexWriter"]
 
 import logging
-import pkg_resources
-import string
 import os
 
 from PIL import Image
 from shutil import copyfile
 from ged4py import model
-from .plotter import Plotter
-from .size import Size
 from . import utils
 from . import writer
 
@@ -61,7 +57,6 @@ class LatexWriter(writer.Writer):
     :param int tree_width: Number of generations in ancestor tree.
     """
 
-
     def __init__(self, flocator, output, tr, encoding=None,
                  encoding_errors="strict",
                  sort_order=model.ORDER_SURNAME_GIVEN, name_fmt=0,
@@ -82,7 +77,6 @@ class LatexWriter(writer.Writer):
                                make_images=make_images, make_stat=make_stat,
                                make_toc=make_toc)
 
-
         self._sexName = {}
         self._sexName['M'] = 'male'
         self._sexName['F'] = 'female'
@@ -98,10 +92,11 @@ class LatexWriter(writer.Writer):
                                   'b4paper', 'b5paper', 'b6paper',
                                   'c0paper', 'c1paper', 'c2paper', 'c3paper',
                                   'c4paper', 'c5paper', 'c6paper',
-                                  'b0j', 'b1j', 'b2j', 'b3j', 'b4j', 'b5j', 'b6j',
-                                  'ansiapaper', 'ansibpaper', 'ansicpaper',
-                                  'ansidpaper', 'ansiepaper', 'letterpaper',
-                                  'executivepaper', 'legalpaper']
+                                  'b0j', 'b1j', 'b2j', 'b3j', 'b4j', 'b5j',
+                                  'b6j', 'ansiapaper', 'ansibpaper',
+                                  'ansicpaper', 'ansidpaper', 'ansiepaper',
+                                  'letterpaper', 'executivepaper',
+                                  'legalpaper']
         self._supportedOrientations = ['portrait', 'landscape']
 
         self._output = output
@@ -110,17 +105,17 @@ class LatexWriter(writer.Writer):
         self._margin_top = margin_top
         self._margin_bottom = margin_bottom
         self._paper_format = paper_format
-        if not self._paper_format in self._supportedFormats:
-          self._paper_format = 'a4paper'
+        if self._paper_format not in self._supportedFormats:
+            self._paper_format = 'a4paper'
         self._paper_orientation = paper_orientation
-        if not self._paper_orientation in self._supportedOrientations:
-          self._paper_orientation = 'portrait'
+        if self._paper_orientation not in self._supportedOrientations:
+            self._paper_orientation = 'portrait'
 
         self._tree_scale = float(tree_scale)
         if self._tree_scale > 2.0:
-          self._tree_scale = 2.0
+            self._tree_scale = 2.0
         if self._tree_scale < 0.01:
-          self._tree_scale = 0.01
+            self._tree_scale = 0.01
 
         self._descending_generations = int(descending_generations)
         self._ascending_generations = int(ascending_generations)
@@ -128,18 +123,19 @@ class LatexWriter(writer.Writer):
         self._eps_images = eps_images
 
         if hasattr(output, 'write'):
-          self._output = output
-          self._close = False
+            self._output = output
+            self._close = False
         else:
-          self._output = open(output, 'wb')
-          self._close = True
+            self._output = open(output, 'wb')
+            self._close = True
 
         self._currentTreeGenerationLimit = 0
 
     def _render_prolog(self):
         """Generate initial document header/title.
         """
-        doc = ['\\documentclass[11pt, %s, twoside, %s]{report}\n' % (self._paper_format, self._paper_orientation)]
+        doc = ['\\documentclass[11pt, %s, twoside, %s]{report}\n' %
+               (self._paper_format, self._paper_orientation)]
         doc += ['\\usepackage[utf8]{inputenc}\n']
         doc += ['\\usepackage[T2A,T1]{fontenc}\n']
         doc += ['\\usepackage[polish,russian,english]{babel}\n']
@@ -175,14 +171,15 @@ class LatexWriter(writer.Writer):
         doc += ['\\pagestyle{fancy}\n']
         doc += ['\\fancyfoot[LE,RO]{\\thepage}\n']
         doc += ['\\cfoot{}\n']
- 
+
         doc += ['\\title{' + self._TR("Ancestor tree") + '}\n']
-        doc += ['\\author{Dariusz Kania}\n']
+        doc += ['\\author{(author of the tree)}\n']
         doc += ['\\date{\\today}\n\n']
         doc += ['\\begin{document}\n\n']
 
         doc += ['\\selectlanguage{%s}\n' % self._languageName[self._tr._lang]]
-        doc += ['\\setlist[description]{font=\\normalfont\\space, itemsep=0pt}']
+        doc += ['\\setlist[description]{font=\\normalfont\\space,\
+                itemsep=0pt}']
         doc += ['\\maketitle\n\n']
         doc += ['\\newpage\\mbox{}\n']
         doc += ['\\thispagestyle{empty}\n\n']
@@ -193,13 +190,13 @@ class LatexWriter(writer.Writer):
         doc += ['\\raggedbottom\n']
 
         if self._make_toc:
-          doc += ['\\tableofcontents\n\n']
+            doc += ['\\tableofcontents\n\n']
 
         for line in doc:
             self._output.write(line.encode('utf-8'))
 
     def _TR(self, text):
-      return self._tr.tr(TR(text))
+        return self._tr.tr(TR(text))
 
     def _interpolate(self, text):
         """Takes text with embedded references and returns proporly
@@ -207,11 +204,11 @@ class LatexWriter(writer.Writer):
         """
         result = ''
         for piece in utils.split_refs(text):
-          if isinstance(piece, tuple):
-            xref, name = piece
-            result += name
-          else:
-            result += piece
+            if isinstance(piece, tuple):
+                xref, name = piece
+                result += name
+            else:
+                result += piece
         return result
 
     def _render_section(self, level, ref_id, title, newpage=False):
@@ -225,10 +222,10 @@ class LatexWriter(writer.Writer):
         :param str title: Printable section name.
         """
         if not title:
-          return
+            return
 
         if level == 2 and self._excludeThisPerson(title):
-          return
+            return
 
         sectionType = {}
         sectionType[1] = 'chapter'
@@ -239,8 +236,8 @@ class LatexWriter(writer.Writer):
         doc += ['\\' + sectionType[level] + '{' + title + '}\n']
         doc += ['\\label{%s}\n' % ref_id]
         if level == 1:
-          doc += ['\\thispagestyle{empty}\n']
-          doc += ['\\newpage\n\n']
+            doc += ['\\thispagestyle{empty}\n']
+            doc += ['\\newpage\n\n']
 
         for line in doc:
             self._output.write(line.encode('utf-8'))
@@ -272,69 +269,75 @@ class LatexWriter(writer.Writer):
 
         doc = []
 
-        if not person.name.first and not person.name.maiden and not person.name.surname:
-          return
- 
+        if (not person.name.first and
+           not person.name.maiden and
+           not person.name.surname):
+            return
+
         if self._excludeThisPerson(person.name.surname):
-          return
+            return
 
         if image_data:
-          img = self._getImageFragment(person)
-          if img:
-            doc += [img]
+            img = self._getImageFragment(person)
+            if img:
+                doc += [img]
 
         # all attributes follow
         if attributes:
-          longestAttribute = ''
-          for attr, value in attributes:
-            if len(longestAttribute) < len(self._TR(attr)):
-              longestAttribute = self._TR(attr)
-          doc += ['\\makebox{}\n']
-          doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},style=nextline]' % longestAttribute]
-          for attr, value in attributes:
-            doc += [ '\\item[%s:] %s\n' % (self._TR(attr), self._interpolate(value)) ] 
-          doc += ['\\end{description}\n']
+            longestAttribute = ''
+            for attr, value in attributes:
+                if len(longestAttribute) < len(self._TR(attr)):
+                    longestAttribute = self._TR(attr)
+            doc += ['\\makebox{}\n']
+            doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},\
+                    style=nextline]' % longestAttribute]
+            for attr, value in attributes:
+                doc += ['\\item[%s:] %s\n' % (self._TR(attr),
+                        self._interpolate(value))]
+            doc += ['\\end{description}\n']
 
         if families:
-          doc += ['\\subsubsection{' + self._TR("Spouses and children") + '}\n']
-          doc += ['\\noindent\n']
-          for family in families:
-            doc += [ '%s\\\\\n' % self._interpolate(family) ] 
+            doc += ['\\subsubsection{' +
+                    self._TR("Spouses and children") + '}\n']
+            doc += ['\\noindent\n']
+            for family in families:
+                doc += ['%s\\\\\n' % self._interpolate(family)]
 
         if events:
-          longestDate = ''
-          for date, facts in events:
-            if len(longestDate) < len(date):
-              longestDate = date
+            longestDate = ''
+            for date, facts in events:
+                if len(longestDate) < len(date):
+                    longestDate = date
 
-          doc += ['\\subsubsection{' + self._TR("Events and dates") + '}\n']
-          doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},style=nextline]' % longestDate]
-          for date, facts in events:
-            doc += [ '\\item[%s:] %s\n' % (date, self._interpolate(facts)) ] 
-          doc += ['\\end{description}\n']
+            doc += ['\\subsubsection{' + self._TR("Events and dates") + '}\n']
+            doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},\
+                    style=nextline]' % longestDate]
+            for date, facts in events:
+                doc += ['\\item[%s:] %s\n' % (date, self._interpolate(facts))]
+            doc += ['\\end{description}\n']
 
         if notes:
-          doc += ['\\subsubsection{' + self._TR("Comments") + '}\n']
-          for note in notes:
-            doc += [ self._interpolate(note) + '\n']
+            doc += ['\\subsubsection{' + self._TR("Comments") + '}\n']
+            for note in notes:
+                doc += [self._interpolate(note) + '\n']
 
         tree_svg = self._make_family_tree(person)
         if tree_svg:
-          doc += ['\\subsubsection{' + self._TR("Ancestor tree") + '}\n']
-          doc += [tree_svg]
+            doc += ['\\subsubsection{' + self._TR("Ancestor tree") + '}\n']
+            doc += [tree_svg]
         else:
-          doc += ['\\vskip{2ex}\n']
+            doc += ['\\vskip{2ex}\n']
 
         for line in doc:
-          self._output.write(line.encode('utf-8'))
+            self._output.write(line.encode('utf-8'))
 
     def _excludeThisPerson(self, name):
         if len(self._family_names) < 1:
-          return False
+            return False
 
         for s in self._family_names:
-          if s in name:
-            return False
+            if s in name:
+                return False
         return True
 
     def _render_name_stat(self, n_total, n_females, n_males):
@@ -347,15 +350,18 @@ class LatexWriter(writer.Writer):
         :param int n_females: Number of female individuals.
         :param int n_males: Number of male individuals.
         """
-        s = [self._TR(t) for t in ['Person count', 'Female count', 'Male count'] ]
+        s = [self._TR(t) for t in ['Person count',
+                                   'Female count',
+                                   'Male count']]
         longestDescription = ''
         for t in s:
-          if len(t) > len(longestDescription):
-            longestDescription = t
+            if len(t) > len(longestDescription):
+                longestDescription = t
 
         doc = []
         doc = ['\\newlength{\\longestdesc}\n']
-        doc += ['\\setlength{\\longestdesc}{\\widthof{%s }}\n' % longestDescription]
+        doc += ['\\setlength{\\longestdesc}{\\widthof{%s }}\n' %
+                longestDescription]
         doc += ['\\noindent\n']
         doc += ['\\makebox[\\longestdesc][l]{%s} %d\\\\\n' % (s[0], n_total)]
         doc += ['\\makebox[\\longestdesc][l]{%s} %d\\\\\n' % (s[1], n_females)]
@@ -387,17 +393,19 @@ class LatexWriter(writer.Writer):
         tbl += ['\\begin{multicols}{3}\n']
         tbl += ['\\noindent\n']
         for name1, count1, name2, count2 in _gencouples(freq_table):
-          tbl += ['\\makebox[\\longestname][l]{%s} %d, %.2f\\%%\\\\\n' % (name1 or '(-)', count1, 100.0*count1/total)]
-          if count2 is not None:
-            tbl += ['\\makebox[\\longestname][l]{%s} %d, %.2f\\%%\\\\\n' % (name2 or '(-)', count2, 100.0*count2/total)]
+            tbl += ['\\makebox[\\longestname][l]{%s} %d, %.2f\\%%\\\\\n' %
+                    (name1 or '(-)', count1, 100.0 * count1 / total)]
+            if count2 is not None:
+                tbl += ['\\makebox[\\longestname][l]{%s} %d, %.2f\\%%\\\\\n' %
+                        (name2 or '(-)', count2, 100.0 * count2 / total)]
         tbl += ['\\end{multicols}\n']
         tbl += ['\\let\\longestname\\relax\n']
 
         for line in tbl:
-          self._output.write(line.encode('utf-8'))
+            self._output.write(line.encode('utf-8'))
 
     def _render_toc(self):
-        """Table of contents is produced automatically by LaTeX - no need to implement it.
+        """Table of contents is produced automatically by LaTeX.
         """
 
     def _finalize(self):
@@ -405,7 +413,7 @@ class LatexWriter(writer.Writer):
         """
         doc = ['\\end{document}']
         for line in doc:
-          self._output.write(line.encode('utf-8'))
+            self._output.write(line.encode('utf-8'))
 
         if self._close:
             self._output.close()
@@ -417,10 +425,11 @@ class LatexWriter(writer.Writer):
 
         imageFileName = self._aquireImage(person)
         if not imageFileName:
-          return doc
+            return doc
 
         doc += '\\begin{wraptable}{r}{5.0cm}\n'
-        doc += '\\tcbincludegraphics[enhanced,blank,arc=.5cm]{%s}\n' % imageFileName
+        doc += '\\tcbincludegraphics[enhanced,blank,arc=.5cm]{%s}\n' %\
+               imageFileName
         doc += '\\end{wraptable}\n'
         doc += '\\makebox{}\n'
 
@@ -430,22 +439,24 @@ class LatexWriter(writer.Writer):
 
         sourceImageFile = utils.personImageFile(person)
         if not os.path.exists(sourceImageFile):
-          return None
+            return None
 
         if not os.path.exists('ged2doc.media'):
-          os.mkdir('ged2doc.media')
+            os.mkdir('ged2doc.media')
 
-        fileName,extension = os.path.splitext(sourceImageFile)
+        fileName, extension = os.path.splitext(sourceImageFile)
         newFileName = ''
         if self._eps_images:
-          newFileName = person.xref_id[1:-1] + '.eps'
-          im = Image.open(sourceImageFile)
-          im.save('ged2doc.media/' + newFileName)
-          print( 'Converted %s to ged2doc.media/%s' % (sourceImageFile, newFileName))
+            newFileName = person.xref_id[1:-1] + '.eps'
+            im = Image.open(sourceImageFile)
+            im.save('ged2doc.media/' + newFileName)
+            print('Converted %s to ged2doc.media/%s' %
+                  (sourceImageFile, newFileName))
         else:
-          newFileName = person.xref_id[1:-1] + extension.lower()
-          copyfile(sourceImageFile, 'ged2doc.media/' + newFileName)
-          print( 'Copied %s to ged2doc.media/%s' % (sourceImageFile, newFileName))
+            newFileName = person.xref_id[1:-1] + extension.lower()
+            copyfile(sourceImageFile, 'ged2doc.media/' + newFileName)
+            print('Copied %s to ged2doc.media/%s' %
+                  (sourceImageFile, newFileName))
         return newFileName
 
     def _make_family_tree(self, person):
@@ -456,169 +467,169 @@ class LatexWriter(writer.Writer):
         """
         tree = ''
         if not person:
-          return tree
+            return tree
 
         tree += '\\vskip 3ex\n'
         tree += '\\begin{centering}\n'
-        tree += '\\begin{tikzpicture}[scale=%f,transform shape]\n' % self._tree_scale
+        tree += '\\begin{tikzpicture}[scale=%f,transform shape]\n' %\
+                self._tree_scale
         tree += '\\genealogytree[template=signpost,\n'
         tree += '                timeflow=down,\n'
-        tree += '                options for node={probant}{box={colback=yellow!50}}]{\n'
-        tree += self._makeTree(person) 
+        tree += '                options for node={probant}%\n'
+        tree += '                {box={colback=yellow!50}}]{\n'
+        tree += self._makeTree(person)
         tree += '}\n'
         tree += '\\end{tikzpicture}\n\n'
         tree += '\\end{centering}\n'
         return tree
 
     def _makeTree(self, probant):
-      tree = ''
-      if not probant:
-        return;
+        tree = ''
+        if not probant:
+            return
 
-      gen = self._ascending_generations
-      rootPerson, gen = self._findRootPerson(probant, self._ascending_generations)
-      self._currentTreeGenerationLimit = self._descending_generations + self._ascending_generations - gen
+        gen = self._ascending_generations
+        rootPerson, gen = self._findRootPerson(probant,
+                                               self._ascending_generations)
+        self._currentTreeGenerationLimit = (self._descending_generations +
+                                            self._ascending_generations - gen)
 
-      tree += self._addPersonAndSiblings(rootPerson, probant, 0)
+        tree += self._addPersonAndSiblings(rootPerson, probant, 0)
 
-      if len(tree) > 0:
-        tree = '  sandclock{\n' + tree + '  }\n'
+        if len(tree) > 0:
+            tree = '  sandclock{\n' + tree + '  }\n'
 
-      return tree
+        return tree
 
     def _findRootPerson(self, person, gen):
-      if gen < 1 or not person:
+        if gen < 1 or not person:
+            return [person, gen]
+
+        father, genF = self._findRootPerson(person.father, gen - 1)
+        mother, genM = self._findRootPerson(person.mother, gen - 1)
+
+        if father and mother:
+            if genF <= genM:
+                return [father, genF]
+            return [mother, genM]
+
+        if father:
+            return [father, genF]
+
+        if mother:
+            return [mother, genM]
+
         return [person, gen]
 
-      father, genF = self._findRootPerson(person.father, gen-1)
-      mother, genM = self._findRootPerson(person.mother, gen-1)
-
-      if father and mother:
-        if genF <= genM:
-          return [father, genF]
-        return [mother, genM]
-
-      if father:
-        return [father, genF]
-
-      if mother:
-        return [mother, genM]
-
-      return [person, gen]
-
-    def _addParents(self, person, gen):
-      indent = self._indent(gen)
-      motherFams = person.mother.sub_tags('FAMS')
-      fatherFams = person.father.sub_tags('FAMS')
-
-      if person.mother:
-        tree += indent + 'parent{\n  ' + self._node('g', person.mother, -1) + indent + '}\n'
-      if person.father:
-        tree += indent + 'parent{\n  ' + self._node('g', person.father, -1) + indent + '}\n'
-
     def _addPersonAndSiblings(self, person, probant, gen):
-      tree = ''
-#      if gen > self._currentTreeGenerationLimit or not person:
-      if not person:
+        tree = ''
+        if not person:
+            return tree
+
+        if gen > 0:
+            siblings = self._commonChildren(person.father, person.mother)
+            for p in siblings:
+                tree += self._addSpouses(p, probant, gen)
+
+        if len(tree) == 0:
+            tree += self._addSpouses(person, probant, gen)
+
         return tree
-
-      if gen > 0:
-        siblings = self._commonChildren(person.father, person.mother)
-        for p in siblings:
-          tree += self._addSpouses(p, probant, gen)
-
-      if len(tree) == 0:
-        tree += self._addSpouses(person, probant, gen)
-
-      return tree
 
     def _addSpouses(self, person, probant, gen):
-      tree = ''
-      if gen > self._currentTreeGenerationLimit:
+        tree = ''
+        if gen > self._currentTreeGenerationLimit:
+            return tree
+
+        indent = self._indent(gen)
+        if gen == self._currentTreeGenerationLimit:
+            tree = self._node('g', person, probant, gen)
+        else:
+            fams = person.sub_tags('FAMS')
+            spouseNumber = 0
+            for fam in fams:
+                spouse = writer._spouse(person, fam)
+                children = fam.sub_tags("CHIL")
+                if not spouse:
+                    continue
+                spouseNumber += 1
+                if spouseNumber == 1:
+                    tree += self._node('p', spouse, probant, gen)
+                    tree += self._node('g', person, probant, gen)
+                    tree += self._addChildren(children, probant, gen + 1)
+                else:
+                    tree += indent + 'union{\n'
+                    tree += self._node('p', spouse, probant, gen)
+                    tree += self._addChildren(children, probant, gen + 1)
+                    tree += indent + '}\n'
+            if len(tree) == 0:
+                tree = self._node('g', person, probant, gen)
+
+        tree = indent + 'child{\n' + tree + indent + '}\n'
         return tree
-
-      indent = self._indent(gen)
-      if gen == self._currentTreeGenerationLimit:
-        tree = self._node('g', person, probant, gen)
-      else:
-        fams = person.sub_tags('FAMS')
-        spouseNumber=0
-        for fam in fams:
-          spouse = writer._spouse(person, fam)
-          children = fam.sub_tags("CHIL")
-          if not spouse:
-            continue
-          spouseNumber += 1
-          if spouseNumber == 1:
-            tree += self._node('p', spouse, probant, gen)
-            tree += self._node('g', person, probant, gen)
-            tree += self._addChildren(children, probant, gen+1)
-          else:
-            tree += indent + 'union{\n'
-            tree += self._node('p', spouse, probant, gen)
-            tree += self._addChildren(children, probant, gen+1)
-            tree += indent + '}\n'
-        if len(tree) == 0:
-          tree = self._node('g', person, probant, gen)
-
-      tree = indent + 'child{\n' + tree + indent + '}\n'
-      return tree
 
     def _addChildren(self, children, probant, gen):
-      tree = ''
-      if not children:
+        tree = ''
+        if not children:
+            return tree
+
+        for child in children:
+            if gen == self._currentTreeGenerationLimit:
+                tree += self._node('c', child, probant, gen)
+            else:
+                tree += self._addSpouses(child, probant, gen)
+
         return tree
 
-      for child in children:
-        if gen == self._currentTreeGenerationLimit:
-          tree += self._node('c', child, probant, gen)
-        else:
-          tree += self._addSpouses(child, probant, gen)
-
-      return tree
-
     def _commonChildren(self, person1, person2):
-      children = []
-      if not person1 or not person2:
+        children = []
+        if not person1 or not person2:
+            return children
+
+        childrenOfPerson1 = self._children(person1)
+        childrenOfPerson2 = self._children(person2)
+        for c1 in childrenOfPerson1:
+            for c2 in childrenOfPerson2:
+                if c1.xref_id == c2.xref_id:
+                    children.append(c1)
+
         return children
 
-      childrenOfPerson1 = self._children(person1)
-      childrenOfPerson2 = self._children(person2)
-      for c1 in childrenOfPerson1:
-        for c2 in childrenOfPerson2:
-          if c1.xref_id == c2.xref_id:
-            children.append(c1)
-
-      return children
-
     def _children(self, person):
-      children = []
-      if not person:
-        return []
-      fams = person.sub_tags('FAMS')
-      for fam in fams:
-        children += fam.sub_tags('CHIL')
-      return children
+        children = []
+        if not person:
+            return []
+        fams = person.sub_tags('FAMS')
+        for fam in fams:
+            children += fam.sub_tags('CHIL')
+        return children
 
     def _indent(self, gen):
-      if gen < 0:
-        return '    ' + '  ' * (abs(gen)-1)
-      return '    ' + '  ' * gen
+        if gen < 0:
+            return '    ' + '  ' * (abs(gen) - 1)
+        return '    ' + '  ' * gen
 
     def _node(self, nodeType, person, probant, gen):
-      if not person:
-        return ''
-      indent = self._indent(gen+1)
-      sex = self._sexName[person.sex]
-#      page = '(\\pageref{%s})' % person.xref_id[1:-1]
-      if person.xref_id == probant.xref_id:
-        return indent + '%s[%s, id=probant]{%s %s}\n' % (nodeType, sex, person.name.first, person.name.surname)
-      else:
-        return indent + '%s[%s]{%s %s}\n' % (nodeType, sex, person.name.first, person.name.surname)
+        if not person:
+            return ''
+        indent = self._indent(gen + 1)
+        sex = self._sexName[person.sex]
+    #       page = '(\\pageref{%s})' % person.xref_id[1:-1]
+        if person.xref_id == probant.xref_id:
+            return indent + '%s[%s, id=probant]{%s %s}\n' %\
+                            (nodeType,
+                             sex,
+                             person.name.first,
+                             person.name.surname)
+        else:
+            return indent + '%s[%s]{%s %s}\n' %\
+                            (nodeType,
+                             sex,
+                             person.name.first,
+                             person.name.surname)
 
     def _birthdate(self, person):
-      birthday = person.sub_tag('BIRT/DATE')
-      if not birthday:
-        return ''
-      return '\\\\\\gtrsymBorn\\,%s' % self._tr.tr_date(birthday.value)
-
+        birthday = person.sub_tag('BIRT/DATE')
+        if not birthday:
+            return ''
+        return '\\\\\\gtrsymBorn\\,%s' % self._tr.tr_date(birthday.value)
