@@ -100,6 +100,8 @@ class LatexWriter(writer.Writer):
         self._supportedOrientations = ['portrait', 'landscape']
 
         self._output = output
+        self._mediaDir = output.rsplit('.', 1)[0] + '.media'
+        print("Media dir = %s\n" % self._mediaDir)
         self._margin_left = margin_left
         self._margin_right = margin_right
         self._margin_top = margin_top
@@ -159,7 +161,7 @@ class LatexWriter(writer.Writer):
         doc += ['bottom=%s,' % self._margin_bottom]
         doc += ['headheight=20pt, footskip=.25in]{geometry}\n']
 
-        doc += ['\\graphicspath{ {ged2doc.media/} }\n']
+        doc += ['\\graphicspath{ {%s/} }\n' % self._mediaDir]
 
         doc += ['\\newcommand{\\sectionbreak}{\\clearpage}\n']
 
@@ -441,22 +443,22 @@ class LatexWriter(writer.Writer):
         if not os.path.exists(sourceImageFile):
             return None
 
-        if not os.path.exists('ged2doc.media'):
-            os.mkdir('ged2doc.media')
+        if not os.path.exists(self._mediaDir):
+            os.mkdir(self._mediaDir)
 
         fileName, extension = os.path.splitext(sourceImageFile)
         newFileName = ''
         if self._eps_images:
             newFileName = person.xref_id[1:-1] + '.eps'
             im = Image.open(sourceImageFile)
-            im.save('ged2doc.media/' + newFileName)
-            print('Converted %s to ged2doc.media/%s' %
-                  (sourceImageFile, newFileName))
+            im.save(self._mediaDir + '/' + newFileName)
+            print('Converted %s to %s/%s' %
+                  (sourceImageFile, self._mediaDir, newFileName))
         else:
             newFileName = person.xref_id[1:-1] + extension.lower()
-            copyfile(sourceImageFile, 'ged2doc.media/' + newFileName)
-            print('Copied %s to ged2doc.media/%s' %
-                  (sourceImageFile, newFileName))
+            copyfile(sourceImageFile, self._mediaDir + '/' + newFileName)
+            print('Copied %s to %s/%s' %
+                  (sourceImageFile, self._mediaDir, newFileName))
         return newFileName
 
     def _make_family_tree(self, person):
@@ -614,7 +616,6 @@ class LatexWriter(writer.Writer):
             return ''
         indent = self._indent(gen + 1)
         sex = self._sexName[person.sex]
-    #       page = '(\\pageref{%s})' % person.xref_id[1:-1]
         if person.xref_id == probant.xref_id:
             return indent + '%s[%s, id=probant]{%s %s}\n' %\
                             (nodeType,
