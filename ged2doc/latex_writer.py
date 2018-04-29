@@ -50,6 +50,8 @@ class LatexWriter(writer.Writer):
         section.
     :param bool make_toc: If ``True`` (default) then generate Table of
         Contents.
+    :param bool events_without_dates: If ``True`` (default) then show events
+            that have no associated dates.
     :param Size image_width: Size of the images.
     :param Size image_height: Size of the images.
     :param bool image_upscale: If True then smaller images will be
@@ -61,6 +63,7 @@ class LatexWriter(writer.Writer):
                  encoding_errors="strict",
                  sort_order=model.ORDER_SURNAME_GIVEN, name_fmt=0,
                  make_images=True, make_stat=True, make_toc=True,
+                 events_without_dates=True,
                  paper_format="a4paper",
                  paper_orientation="portrait",
                  margin_left="0.5in", margin_right="0.5in",
@@ -75,7 +78,8 @@ class LatexWriter(writer.Writer):
                                encoding_errors=encoding_errors,
                                sort_order=sort_order, name_fmt=name_fmt,
                                make_images=make_images, make_stat=make_stat,
-                               make_toc=make_toc)
+                               make_toc=make_toc,
+                               events_without_dates=events_without_dates)
 
         self._sexName = {}
         self._sexName['M'] = 'male'
