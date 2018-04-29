@@ -387,3 +387,5 @@ msgstr "Statystyki Ogólne"
 msgid "kids"
 msgstr "dzieci"
 
+msgid "Event Date Unknown"
+msgstr "Data Zdarzenia Nieznana"
