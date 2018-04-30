@@ -176,8 +176,12 @@ def main():
                        help="Factor by which personal genealogy tree "
                        "is scaled, allows to adjust the tree size to fit on page"
                        "default: %(default)s")
+    group.add_argument("--latex-ascending-generations", default="1",
+                       help="Number of ancestor generations to be shown on "
+                       "each personal genealogy tree"
+                       "default: %(default)s")
     group.add_argument("--latex-descending-generations", default="2",
-                       help="Number of generations to be shown on "
+                       help="Number of descendant generations to be shown on "
                        "each personal genealogy tree"
                        "default: %(default)s")
 
@@ -272,6 +276,7 @@ def main():
                            margin_top=args.latex_margin_top,
                            margin_bottom=args.latex_margin_bottom,
                            tree_scale=args.latex_tree_scale,
+                           ascending_generations=args.latex_ascending_generations,
                            descending_generations=args.latex_descending_generations)
 
     try:

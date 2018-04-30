@@ -80,6 +80,7 @@ class Writer(object):
         self._make_toc = make_toc
         self._events_without_dates = events_without_dates
         self._tr = tr
+        self._author = ""
 
     def save(self):
         """Produce output document.
@@ -95,6 +96,10 @@ class Writer(object):
 
         reader = parser.GedcomReader(gfile, encoding=self._encoding,
                                      errors=self._encoding_errors)
+
+        hdr = next(reader.records0('SUBM'), None)
+        if hdr:
+          self._author = hdr.sub_tag_value('NAME')[0]
 
         # generate starting sequence
         self._render_prolog()

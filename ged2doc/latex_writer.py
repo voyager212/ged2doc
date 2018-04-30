@@ -69,8 +69,8 @@ class LatexWriter(writer.Writer):
                  margin_left="0.5in", margin_right="0.5in",
                  margin_top="1.0in", margin_bottom="0.25in",
                  image_width="2in", image_height="2in",
-                 tree_scale="1.0", descending_generations="2",
-                 ascending_generations="1",
+                 tree_scale="1.0", ascending_generations="1",
+                 descending_generations="2",
                  family_names="",
                  eps_images=False):
 
@@ -123,8 +123,8 @@ class LatexWriter(writer.Writer):
         if self._tree_scale < 0.01:
             self._tree_scale = 0.01
 
-        self._descending_generations = int(descending_generations)
         self._ascending_generations = int(ascending_generations)
+        self._descending_generations = int(descending_generations)
         self._family_names = family_names.split(',')
         self._eps_images = eps_images
 
@@ -179,7 +179,8 @@ class LatexWriter(writer.Writer):
         doc += ['\\cfoot{}\n']
 
         doc += ['\\title{' + self._TR("Ancestor tree") + '}\n']
-        doc += ['\\author{(author of the tree)}\n']
+        if len(self._author):
+            doc += ['\\author{%s}\n' % self._author]
         doc += ['\\date{\\today}\n\n']
         doc += ['\\begin{document}\n\n']
 
@@ -205,8 +206,8 @@ class LatexWriter(writer.Writer):
         return self._tr.tr(TR(text))
 
     def _interpolate(self, text):
-        """Takes text with embedded references and returns proporly
-        escaped text with HTML links.
+        """Takes text with embedded references and returns properly
+        escaped.
         """
         result = ''
         for piece in utils.split_refs(text):
@@ -295,8 +296,9 @@ class LatexWriter(writer.Writer):
                 if len(longestAttribute) < len(self._TR(attr)):
                     longestAttribute = self._TR(attr)
             doc += ['\\makebox{}\n']
-            doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},\
-                    style=nextline]' % longestAttribute]
+            doc += ['\\begin{description}']
+            doc += ['[leftmargin=\\widthof{%s:mm},' % longestAttribute]
+            doc += ['style=nextline]\n']
             for attr, value in attributes:
                 doc += ['\\item[%s:] %s\n' % (self._TR(attr),
                         self._interpolate(value))]
@@ -316,8 +318,9 @@ class LatexWriter(writer.Writer):
                     longestDate = date
 
             doc += ['\\subsubsection{' + self._TR("Events and dates") + '}\n']
-            doc += ['\\begin{description}[leftmargin=\\widthof{%s:mm},\
-                    style=nextline]' % longestDate]
+            doc += ['\\begin{description}']
+            doc += ['[leftmargin=\\widthof{%s:mm},' % longestDate]
+            doc += ['style=nextline]']
             for date, facts in events:
                 doc += ['\\item[%s:] %s\n' % (date, self._interpolate(facts))]
             doc += ['\\end{description}\n']

@@ -34,7 +34,8 @@ DATE_FORMATS = [
 # maps language name to its default date format
 DEFAULT_DATE_FORMAT = {
     "en": "MD,Y",
-    "ru": "D.M.Y"
+    "ru": "D.M.Y",
+    "pl": "D.M.Y"
     }
 
 # this is no-op function, only used to mark translatable strings,
